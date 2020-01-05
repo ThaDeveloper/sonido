@@ -22,6 +22,7 @@ class Query(graphene.ObjectType):
     likes = graphene.List(LikeType)
 
     def resolve_tracks(self, info, search=None):
+        """ Return all tracks or by filter """
         if search:
             filter = (
                 Q(title__icontains=search) |
@@ -34,6 +35,7 @@ class Query(graphene.ObjectType):
         return Track.objects.all()
 
     def resolve_likes(self, info):
+        """ Return all likes """
         return Like.objects.all()
 
 
@@ -42,17 +44,18 @@ class CreateTrack(graphene.Mutation):
 
     class Arguments:
         title = graphene.String()
-        description = graphene.String()
+        description = graphene.String(required=False)
         url = graphene.String()
 
-    def mutate(self, info, title, description, url):
+    def mutate(self, info, **kwargs):
+        """ Create  a track """
         user = info.context.user
 
         if user.is_anonymous:
             raise GraphQLError('Log in to add a track.')
 
-        track = Track(title=title, description=description,
-                      url=url, posted_by=user)
+        track = Track(title=kwargs.get('title'), description=kwargs.get('description'),
+                      url=kwargs.get('url'), posted_by=user)
         track.save()
         return CreateTrack(track=track)
 
@@ -67,6 +70,7 @@ class UpdateTrack(graphene.Mutation):
         url = graphene.String()
 
     def mutate(self, info, track_id, title, url, description):
+        """ Update track """
         user = info.context.user
         track = Track.objects.get(id=track_id)
 
@@ -89,6 +93,7 @@ class DeleteTrack(graphene.Mutation):
         track_id = graphene.Int(required=True)
 
     def mutate(self, info, track_id):
+        """ Delete track by ID """
         user = info.context.user
         track = Track.objects.get(id=track_id)
 
@@ -100,7 +105,7 @@ class DeleteTrack(graphene.Mutation):
         return DeleteTrack(track_id=track_id)
 
 
-class CreateLike(graphene.Mutation):
+class LikeTrack(graphene.Mutation):
     user = graphene.Field(UserType)
     track = graphene.Field(TrackType)
 
@@ -108,6 +113,7 @@ class CreateLike(graphene.Mutation):
         track_id = graphene.Int(required=True)
 
     def mutate(self, info, track_id):
+        """ Like a given track """
         user = info.context.user
         if user.is_anonymous:
             raise GraphQLError('Login to like tracks.')
@@ -121,11 +127,14 @@ class CreateLike(graphene.Mutation):
             track=track
         )
 
-        return CreateLike(user=user, track=track)
+        return LikeTrack(user=user, track=track)
 
 
 class Mutation(graphene.ObjectType):
-    create_track = CreateTrack.Field()
+    create_track = CreateTrack.Field(description="Creates a track and takes the arguments\
+            \n- title: The title of the new track[required]\
+            \n- description: A short description about the track[optional]\
+            \n- url: The path to the track[required]")
     update_track = UpdateTrack.Field()
     delete_track = DeleteTrack.Field()
-    create_like = CreateLike.Field()
+    create_like = LikeTrack.Field()

@@ -14,9 +14,11 @@ class Query(graphene.ObjectType):
     me = graphene.Field(UserType)
 
     def resolve_user(self, info, id):
+        """ Get user by id """
         return get_user_model().objects.get(id=id)
 
     def resolve_me(self, info):
+        """ Get current logged in user"""
         user = info.context.user
         if user.is_anonymous:
             raise GraphQLError('Not logged in!')
@@ -43,4 +45,9 @@ class CreateUser(graphene.Mutation):
 
 
 class Mutation(graphene.ObjectType):
-    create_user = CreateUser.Field()
+    create_user = CreateUser.Field(
+        description="Creates a new user and takes the arguments:\
+            \n- username: [required]\
+            \n- email: [required]\
+            \n- password: [required]"
+    )
